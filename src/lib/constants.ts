@@ -1,0 +1,126 @@
+import { ClinicSettings, MedicalService } from './types';
+
+export const MEDICAL_SERVICES: MedicalService[] = [
+  {
+    id: 'general-consult',
+    name: 'General Consultation',
+    category: 'Primary Care',
+    durationMinutes: 30,
+    priceZAR: 650,
+    description: 'Comprehensive physical assessment, diagnosis, prescription medication, and sick certificate if indicated.',
+    badge: 'Most Popular',
+  },
+  {
+    id: 'chronic-review',
+    name: 'Chronic Disease Review',
+    category: 'Chronic Care',
+    durationMinutes: 30,
+    priceZAR: 700,
+    description: 'Ongoing management & repeat prescriptions for hypertension, diabetes, asthma, thyroid, and cholesterol.',
+  },
+  {
+    id: 'health-checkup',
+    name: 'Comprehensive Health & Executive Screening',
+    category: 'Preventative',
+    durationMinutes: 45,
+    priceZAR: 950,
+    description: 'Full vital screening, resting ECG, blood glucose, cholesterol finger-prick, BMI, and lifestyle consultation.',
+    badge: 'Comprehensive',
+  },
+  {
+    id: 'pediatric-care',
+    name: 'Pediatric & Child Wellness Consultation',
+    category: 'Pediatrics',
+    durationMinutes: 30,
+    priceZAR: 620,
+    description: 'Infant and child acute illness, developmental milestones, ear/throat infections, and nutritional guidance.',
+  },
+  {
+    id: 'minor-procedures',
+    name: 'Minor Procedures & Wound Care',
+    category: 'Procedures',
+    durationMinutes: 45,
+    priceZAR: 850,
+    description: 'Wound dressing, suture removal, minor excision, wart cryotherapy, ear syringing, or joint injections.',
+  },
+  {
+    id: 'telehealth-followup',
+    name: 'Telehealth / Video Consultation',
+    category: 'Virtual Care',
+    durationMinutes: 20,
+    priceZAR: 500,
+    description: 'Secure virtual video consultation for routine test results follow-up, medical advice, or script renewals.',
+  },
+];
+
+export const SA_MEDICAL_AIDS = [
+  'Discovery Health',
+  'Bonitas Medical Fund',
+  'Momentum Medical Scheme',
+  'GEMS (Government Employees)',
+  'Bestmed Medical Scheme',
+  'Medihelp',
+  'Medshield',
+  'Fedhealth',
+  'CompCare Medical Scheme',
+  'Bankmed',
+  'Sizwe Hosmed',
+  'Polmed',
+  'Other Medical Aid',
+];
+
+export const DEFAULT_CLINIC_SETTINGS: ClinicSettings = {
+  doctorName: 'Dr. Kgomotso Mokoena',
+  title: 'General Practitioner & Family Physician',
+  qualification: 'MBChB (UP), Dip Obst (SA), FCFP (SA)',
+  hpcsaNumber: 'MP 0689421',
+  practiceNumber: 'PR 0148293',
+  clinicName: 'Brooklyn Family Care & Medical Centre',
+  address: 'Suite 402, Brooklyn Bridge Office Park, 570 Fehrsen St',
+  suburb: 'Brooklyn',
+  city: 'Pretoria',
+  postalCode: '0181',
+  phone: '+27 12 460 8820',
+  whatsapp: '+27 82 555 1928',
+  email: 'reception@brooklyngp.co.za',
+  maxDailyCapacity: 10,
+  defaultSlotDuration: 30,
+  operatingHours: {
+    monday: {
+      isOpen: true,
+      morningSlots: ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'],
+      afternoonSlots: ['14:00', '14:45', '15:30', '16:15'],
+    },
+    tuesday: {
+      isOpen: true,
+      morningSlots: ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'],
+      afternoonSlots: ['14:00', '14:45', '15:30', '16:15'],
+    },
+    wednesday: {
+      isOpen: true,
+      morningSlots: ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'],
+      afternoonSlots: ['14:00', '14:45', '15:30', '16:15'],
+    },
+    thursday: {
+      isOpen: true,
+      morningSlots: ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'],
+      afternoonSlots: ['14:00', '14:45', '15:30', '16:15'],
+    },
+    friday: {
+      isOpen: true,
+      morningSlots: ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'],
+      afternoonSlots: ['14:00', '14:45', '15:30', '16:15'],
+    },
+    saturday: {
+      isOpen: true,
+      morningSlots: ['09:00', '09:45', '10:30', '11:15'],
+      afternoonSlots: [],
+    },
+    sunday: {
+      isOpen: false,
+      morningSlots: [],
+      afternoonSlots: [],
+    },
+  },
+  blockedDates: [],
+};
