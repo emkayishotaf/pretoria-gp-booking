@@ -21,6 +21,28 @@ function parsePostgresUrl(url: string) {
   }
 }
 
+// Cached pool instance across serverless invocations
+let cachedPool: any = null;
+
+async function getVercelPool(connectionString: string) {
+  if (cachedPool) return cachedPool;
+
+  try {
+    const dynamicImport = new Function('modulePath', 'return import(modulePath)');
+    const mod = await dynamicImport('@vercel/postgres');
+    if (mod.createPool) {
+      cachedPool = mod.createPool({ connectionString });
+    } else if (mod.db) {
+      cachedPool = mod.db;
+    } else {
+      cachedPool = mod;
+    }
+    return cachedPool;
+  } catch (err) {
+    return null;
+  }
+}
+
 // Universal query runner: attempts @vercel/postgres, falls back to Neon HTTP endpoint
 export async function queryPostgres(sqlText: string, params: any[] = []): Promise<any[]> {
   const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
@@ -28,44 +50,45 @@ export async function queryPostgres(sqlText: string, params: any[] = []): Promis
     throw new Error('No Postgres connection string found in environment variables');
   }
 
-  // 1. Try @vercel/postgres dynamically
+  // 1. Try @vercel/postgres with cached pool
   try {
-    const dynamicImport = new Function('modulePath', 'return import(modulePath)');
-    const mod = await dynamicImport('@vercel/postgres');
-    const pool = mod.createPool({ connectionString });
-    const result = await pool.query(sqlText, params);
-    return result.rows;
+    const pool = await getVercelPool(connectionString);
+    if (pool && typeof pool.query === 'function') {
+      const result = await pool.query(sqlText, params);
+      return result.rows || [];
+    }
   } catch (err: any) {
-    // 2. If @vercel/postgres is not present or failed, use Neon HTTP endpoint
-    const parsed = parsePostgresUrl(connectionString);
-    if (!parsed) {
-      throw err;
-    }
-
-    // Neon SQL over HTTP: https://<host>/sql
-    const neonHttpUrl = `https://${parsed.host}/sql`;
-    const authHeader = 'Basic ' + Buffer.from(`${parsed.user}:${parsed.password}`).toString('base64');
-
-    const res = await fetch(neonHttpUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authHeader,
-      },
-      body: JSON.stringify({
-        query: sqlText,
-        params,
-      }),
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Postgres query failed via HTTP: ${res.status} ${errBody}`);
-    }
-
-    const data = await res.json();
-    return data.rows || [];
+    console.warn('Vercel postgres pool query error, falling back to HTTP:', err.message);
   }
+
+  // 2. Fall back to Neon SQL HTTP endpoint
+  const parsed = parsePostgresUrl(connectionString);
+  if (!parsed) {
+    throw new Error('Could not parse Postgres connection string');
+  }
+
+  const neonHttpUrl = `https://${parsed.host}/sql`;
+  const authHeader = 'Basic ' + Buffer.from(`${parsed.user}:${parsed.password}`).toString('base64');
+
+  const res = await fetch(neonHttpUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      query: sqlText,
+      params,
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Postgres query failed via HTTP: ${res.status} ${errBody}`);
+  }
+
+  const data = await res.json();
+  return data.rows || [];
 }
 
 // Convert database snake_case row to TypeScript Appointment

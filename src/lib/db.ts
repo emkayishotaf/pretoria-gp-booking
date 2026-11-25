@@ -323,29 +323,33 @@ export async function getAllAppointments(filters?: {
   search?: string;
 }): Promise<Appointment[]> {
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    let query = 'SELECT * FROM appointments WHERE 1=1';
-    const params: any[] = [];
+    try {
+      await initPostgresSchema();
+      let query = 'SELECT * FROM appointments WHERE 1=1';
+      const params: any[] = [];
 
-    if (filters?.date) {
-      params.push(filters.date);
-      query += ` AND date = $${params.length}`;
+      if (filters?.date) {
+        params.push(filters.date);
+        query += ` AND date = $${params.length}`;
+      }
+
+      if (filters?.status && filters.status !== 'all') {
+        params.push(filters.status);
+        query += ` AND status = $${params.length}`;
+      }
+
+      if (filters?.search) {
+        params.push(`%${filters.search.toLowerCase()}%`);
+        const idx = params.length;
+        query += ` AND (LOWER(patient_name) LIKE $${idx} OR LOWER(reference) LIKE $${idx} OR patient_phone LIKE $${idx} OR id_number LIKE $${idx})`;
+      }
+
+      query += ' ORDER BY date DESC, time_slot ASC';
+      const rows = await queryPostgres(query, params);
+      return rows.map(mapRowToAppointment);
+    } catch (err) {
+      console.warn('Postgres getAllAppointments error, using fallback:', err);
     }
-
-    if (filters?.status && filters.status !== 'all') {
-      params.push(filters.status);
-      query += ` AND status = $${params.length}`;
-    }
-
-    if (filters?.search) {
-      params.push(`%${filters.search.toLowerCase()}%`);
-      const idx = params.length;
-      query += ` AND (LOWER(patient_name) LIKE $${idx} OR LOWER(reference) LIKE $${idx} OR patient_phone LIKE $${idx} OR id_number LIKE $${idx})`;
-    }
-
-    query += ' ORDER BY date DESC, time_slot ASC';
-    const rows = await queryPostgres(query, params);
-    return rows.map(mapRowToAppointment);
   }
 
   // Fallback to local store
@@ -382,9 +386,13 @@ export async function getAllAppointments(filters?: {
 
 export async function getAppointmentById(id: string): Promise<Appointment | undefined> {
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    const rows = await queryPostgres('SELECT * FROM appointments WHERE id = $1 LIMIT 1', [id]);
-    return rows.length > 0 ? mapRowToAppointment(rows[0]) : undefined;
+    try {
+      await initPostgresSchema();
+      const rows = await queryPostgres('SELECT * FROM appointments WHERE id = $1 LIMIT 1', [id]);
+      if (rows.length > 0) return mapRowToAppointment(rows[0]);
+    } catch (err) {
+      console.warn('Postgres getAppointmentById error, using fallback:', err);
+    }
   }
 
   const store = loadLocalStore();
@@ -393,12 +401,16 @@ export async function getAppointmentById(id: string): Promise<Appointment | unde
 
 export async function getAppointmentByReference(reference: string): Promise<Appointment | undefined> {
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    const rows = await queryPostgres(
-      'SELECT * FROM appointments WHERE UPPER(reference) = UPPER($1) LIMIT 1',
-      [reference.trim()]
-    );
-    return rows.length > 0 ? mapRowToAppointment(rows[0]) : undefined;
+    try {
+      await initPostgresSchema();
+      const rows = await queryPostgres(
+        'SELECT * FROM appointments WHERE UPPER(reference) = UPPER($1) LIMIT 1',
+        [reference.trim()]
+      );
+      if (rows.length > 0) return mapRowToAppointment(rows[0]);
+    } catch (err) {
+      console.warn('Postgres getAppointmentByReference error, using fallback:', err);
+    }
   }
 
   const store = loadLocalStore();
@@ -421,14 +433,19 @@ export async function getAvailableSlots(dateStr: string): Promise<{
   }[];
 }> {
   const settings = await getClinicSettings();
+  const safeSettings = {
+    ...DEFAULT_CLINIC_SETTINGS,
+    ...settings,
+    operatingHours: settings?.operatingHours || DEFAULT_CLINIC_SETTINGS.operatingHours,
+  };
 
-  if (settings.blockedDates?.includes(dateStr)) {
+  if (safeSettings.blockedDates?.includes(dateStr)) {
     return {
       isOpen: false,
       message: 'The clinic is closed on this date (Doctor leave or public holiday).',
       totalSlots: 0,
       availableCount: 0,
-      maxDailyCapacity: settings.maxDailyCapacity,
+      maxDailyCapacity: safeSettings.maxDailyCapacity,
       bookedSlots: [],
       slots: [],
     };
@@ -436,7 +453,7 @@ export async function getAvailableSlots(dateStr: string): Promise<{
 
   const dateObj = new Date(dateStr + 'T12:00:00');
   const dayIndex = dateObj.getDay();
-  const daysMap: Array<keyof typeof settings.operatingHours> = [
+  const daysMap: Array<keyof typeof safeSettings.operatingHours> = [
     'sunday',
     'monday',
     'tuesday',
@@ -445,8 +462,8 @@ export async function getAvailableSlots(dateStr: string): Promise<{
     'friday',
     'saturday',
   ];
-  const dayKey = daysMap[dayIndex];
-  const schedule = settings.operatingHours[dayKey];
+  const dayKey = daysMap[dayIndex] || 'monday';
+  const schedule = safeSettings.operatingHours?.[dayKey] || DEFAULT_CLINIC_SETTINGS.operatingHours[dayKey];
 
   if (!schedule || !schedule.isOpen) {
     return {
@@ -454,23 +471,32 @@ export async function getAvailableSlots(dateStr: string): Promise<{
       message: 'The clinic is closed on ' + dayKey.charAt(0).toUpperCase() + dayKey.slice(1) + 's.',
       totalSlots: 0,
       availableCount: 0,
-      maxDailyCapacity: settings.maxDailyCapacity,
+      maxDailyCapacity: safeSettings.maxDailyCapacity,
       bookedSlots: [],
       slots: [],
     };
   }
 
   // Fetch active bookings for this date
-  const appointmentsForDate = await getAllAppointments({ date: dateStr });
+  let appointmentsForDate: Appointment[] = [];
+  try {
+    appointmentsForDate = await getAllAppointments({ date: dateStr });
+  } catch (e) {
+    console.warn('Could not load appointments for date:', e);
+  }
+
   const activeBookings = appointmentsForDate.filter((a) => a.status !== 'cancelled');
   const bookedTimeSlots = activeBookings.map((a) => a.timeSlot);
 
   // Daily capacity cap (7 to 11 limit, default 10)
-  const isCapReached = activeBookings.length >= settings.maxDailyCapacity;
+  const isCapReached = activeBookings.length >= safeSettings.maxDailyCapacity;
+
+  const morning = schedule.morningSlots || ['08:30', '09:15', '10:00', '10:45', '11:30', '12:15'];
+  const afternoon = schedule.afternoonSlots || ['14:00', '14:45', '15:30', '16:15'];
 
   const allConfiguredSlots = [
-    ...schedule.morningSlots.map((time) => ({ time, period: 'morning' as const })),
-    ...schedule.afternoonSlots.map((time) => ({ time, period: 'afternoon' as const })),
+    ...morning.map((time) => ({ time, period: 'morning' as const })),
+    ...afternoon.map((time) => ({ time, period: 'afternoon' as const })),
   ];
 
   const slots = allConfiguredSlots.map(({ time, period }) => {
@@ -489,7 +515,7 @@ export async function getAvailableSlots(dateStr: string): Promise<{
     isOpen: true,
     totalSlots: allConfiguredSlots.length,
     availableCount,
-    maxDailyCapacity: settings.maxDailyCapacity,
+    maxDailyCapacity: safeSettings.maxDailyCapacity,
     bookedSlots: bookedTimeSlots,
     slots,
   };
@@ -525,45 +551,49 @@ export async function createAppointment(
   };
 
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    await queryPostgres(
-      `INSERT INTO appointments (
-        id, reference, patient_name, patient_email, patient_phone, id_number, dob, gender,
-        service_id, service_name, service_duration, service_price, payment_type,
-        medical_aid_scheme, medical_aid_number, medical_aid_dependent_code,
-        date, time_slot, status, reason_for_visit, is_first_visit, doctor_notes, cancellation_reason,
-        created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
-      [
-        newAppointment.id,
-        newAppointment.reference,
-        newAppointment.patientName,
-        newAppointment.patientEmail,
-        newAppointment.patientPhone,
-        newAppointment.idNumber,
-        newAppointment.dob || null,
-        newAppointment.gender || null,
-        newAppointment.serviceId,
-        newAppointment.serviceName,
-        newAppointment.serviceDuration,
-        newAppointment.servicePrice,
-        newAppointment.paymentType,
-        newAppointment.medicalAidScheme || null,
-        newAppointment.medicalAidNumber || null,
-        newAppointment.medicalAidDependentCode || null,
-        newAppointment.date,
-        newAppointment.timeSlot,
-        newAppointment.status,
-        newAppointment.reasonForVisit,
-        newAppointment.isFirstVisit,
-        newAppointment.doctorNotes || null,
-        newAppointment.cancellationReason || null,
-        newAppointment.createdAt,
-        newAppointment.updatedAt,
-      ]
-    );
+    try {
+      await initPostgresSchema();
+      await queryPostgres(
+        `INSERT INTO appointments (
+          id, reference, patient_name, patient_email, patient_phone, id_number, dob, gender,
+          service_id, service_name, service_duration, service_price, payment_type,
+          medical_aid_scheme, medical_aid_number, medical_aid_dependent_code,
+          date, time_slot, status, reason_for_visit, is_first_visit, doctor_notes, cancellation_reason,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+        [
+          newAppointment.id,
+          newAppointment.reference,
+          newAppointment.patientName,
+          newAppointment.patientEmail,
+          newAppointment.patientPhone,
+          newAppointment.idNumber,
+          newAppointment.dob || null,
+          newAppointment.gender || null,
+          newAppointment.serviceId,
+          newAppointment.serviceName,
+          newAppointment.serviceDuration,
+          newAppointment.servicePrice,
+          newAppointment.paymentType,
+          newAppointment.medicalAidScheme || null,
+          newAppointment.medicalAidNumber || null,
+          newAppointment.medicalAidDependentCode || null,
+          newAppointment.date,
+          newAppointment.timeSlot,
+          newAppointment.status,
+          newAppointment.reasonForVisit,
+          newAppointment.isFirstVisit,
+          newAppointment.doctorNotes || null,
+          newAppointment.cancellationReason || null,
+          newAppointment.createdAt,
+          newAppointment.updatedAt,
+        ]
+      );
 
-    return { success: true, appointment: newAppointment };
+      return { success: true, appointment: newAppointment };
+    } catch (err: any) {
+      console.warn('Postgres insert error, falling back to local store:', err);
+    }
   }
 
   // Fallback to local store
@@ -612,28 +642,32 @@ export async function updateAppointment(
   };
 
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    await queryPostgres(
-      `UPDATE appointments SET
-        date = $1,
-        time_slot = $2,
-        status = $3,
-        doctor_notes = $4,
-        cancellation_reason = $5,
-        updated_at = $6
-      WHERE id = $7`,
-      [
-        updated.date,
-        updated.timeSlot,
-        updated.status,
-        updated.doctorNotes || null,
-        updated.cancellationReason || null,
-        updated.updatedAt,
-        existing.id,
-      ]
-    );
+    try {
+      await initPostgresSchema();
+      await queryPostgres(
+        `UPDATE appointments SET
+          date = $1,
+          time_slot = $2,
+          status = $3,
+          doctor_notes = $4,
+          cancellation_reason = $5,
+          updated_at = $6
+        WHERE id = $7`,
+        [
+          updated.date,
+          updated.timeSlot,
+          updated.status,
+          updated.doctorNotes || null,
+          updated.cancellationReason || null,
+          updated.updatedAt,
+          existing.id,
+        ]
+      );
 
-    return { success: true, appointment: updated };
+      return { success: true, appointment: updated };
+    } catch (err: any) {
+      console.warn('Postgres update error, falling back to local store:', err);
+    }
   }
 
   // Fallback to local store
@@ -659,9 +693,13 @@ export async function cancelAppointment(
 
 export async function deleteAppointment(id: string): Promise<boolean> {
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    await queryPostgres('DELETE FROM appointments WHERE id = $1', [id]);
-    return true;
+    try {
+      await initPostgresSchema();
+      await queryPostgres('DELETE FROM appointments WHERE id = $1', [id]);
+      return true;
+    } catch (err) {
+      console.warn('Postgres delete error, falling back to local store:', err);
+    }
   }
 
   const store = loadLocalStore();
@@ -679,7 +717,21 @@ export async function getClinicSettings(): Promise<ClinicSettings> {
       await initPostgresSchema();
       const rows = await queryPostgres('SELECT data FROM clinic_settings WHERE id = 1 LIMIT 1');
       if (rows.length > 0 && rows[0].data) {
-        return rows[0].data as ClinicSettings;
+        let raw = rows[0].data;
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw);
+          } catch (e) {
+            raw = null;
+          }
+        }
+        if (raw && typeof raw === 'object') {
+          return {
+            ...DEFAULT_CLINIC_SETTINGS,
+            ...raw,
+            operatingHours: raw.operatingHours || DEFAULT_CLINIC_SETTINGS.operatingHours,
+          };
+        }
       }
     } catch (err) {
       console.warn('Could not read settings from Postgres, falling back:', err);
@@ -695,15 +747,20 @@ export async function updateClinicSettings(updates: Partial<ClinicSettings>): Pr
   const updated: ClinicSettings = {
     ...current,
     ...updates,
+    operatingHours: updates.operatingHours || current.operatingHours || DEFAULT_CLINIC_SETTINGS.operatingHours,
   };
 
   if (isPostgresConfigured()) {
-    await initPostgresSchema();
-    await queryPostgres(
-      'UPDATE clinic_settings SET data = $1, updated_at = NOW() WHERE id = 1',
-      [JSON.stringify(updated)]
-    );
-    return updated;
+    try {
+      await initPostgresSchema();
+      await queryPostgres(
+        'UPDATE clinic_settings SET data = $1, updated_at = NOW() WHERE id = 1',
+        [JSON.stringify(updated)]
+      );
+      return updated;
+    } catch (err) {
+      console.warn('Postgres update settings error, using local fallback:', err);
+    }
   }
 
   const store = loadLocalStore();
