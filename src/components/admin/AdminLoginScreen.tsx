@@ -152,21 +152,6 @@ export default function AdminLoginScreen({ onLoginSuccess }: AdminLoginScreenPro
               )}
             </button>
           </form>
-
-          {/* Password Info Pill */}
-          <div className="mt-6 pt-5 border-t border-slate-800/80 text-center">
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 text-left">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Practice Default Password
-              </span>
-              <p className="text-xs text-slate-300 font-mono select-all bg-slate-900 px-2 py-1 rounded border border-slate-700 inline-block font-bold">
-                DrMokoena2025!
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1.5 leading-normal">
-                You can change this password at any time inside the admin dashboard under <strong>Practice Hours & Settings</strong>.
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Back to Client Portal link */}

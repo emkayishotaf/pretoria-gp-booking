@@ -268,11 +268,11 @@ export default function ClinicSettingsView({
               type="password"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Enter new password (e.g. PretoriaGP2025!)"
+              placeholder="Enter new password"
               className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
             />
             <p className="text-[11px] text-slate-400 mt-1">
-              Standard default password: <code className="text-slate-600 font-mono">DrMokoena2025!</code>
+              Leave blank to keep your current password.
             </p>
           </div>
         </div>

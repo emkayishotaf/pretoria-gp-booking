@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 import { getClinicSettings } from '@/lib/db';
 
-export const DEFAULT_ADMIN_PASSWORD = 'DrMokoena2025!';
+export const DEFAULT_ADMIN_PASSWORD = 'Doctor2026!';
 export const ADMIN_COOKIE_NAME = 'gp_admin_session';
 
 /**

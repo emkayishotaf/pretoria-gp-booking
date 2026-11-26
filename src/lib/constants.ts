@@ -85,7 +85,7 @@ export const DEFAULT_CLINIC_SETTINGS: ClinicSettings = {
   email: 'reception@brooklyngp.co.za',
   maxDailyCapacity: 10,
   defaultSlotDuration: 30,
-  adminPassword: 'DrMokoena2025!',
+  adminPassword: 'Doctor2026!',
   operatingHours: {
     monday: {
       isOpen: true,
