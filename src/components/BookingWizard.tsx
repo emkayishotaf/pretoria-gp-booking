@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -27,16 +27,23 @@ import { downloadICSFile, generateGoogleCalendarUrl } from '@/lib/calendar';
 
 interface BookingWizardProps {
   onBookingComplete?: (appointment: Appointment) => void;
+  initialService?: MedicalService | null;
 }
 
-export default function BookingWizard({ onBookingComplete }: BookingWizardProps) {
+export default function BookingWizard({
+  onBookingComplete,
+  initialService,
+}: BookingWizardProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Form State
-  const [selectedService, setSelectedService] = useState<MedicalService>(MEDICAL_SERVICES[0]);
+  const [selectedService, setSelectedService] = useState<MedicalService>(
+    initialService || MEDICAL_SERVICES[0]
+  );
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<string>('');
-  
+
   // Patient Details
   const [patientName, setPatientName] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
@@ -48,7 +55,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
   const [medicalAidScheme, setMedicalAidScheme] = useState('Discovery Health');
   const [medicalAidNumber, setMedicalAidNumber] = useState('');
   const [medicalAidDependentCode, setMedicalAidDependentCode] = useState('00');
-  const [reasonForVisit, setReasonForVisit] = useState('');
+  const [additionalNotes, setAdditionalNotes] = useState('');
   const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   // Availability query state
@@ -68,10 +75,30 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
   const [confirmedAppointment, setConfirmedAppointment] = useState<Appointment | null>(null);
 
   // Next 10 days for date picker
-  const [availableDays, setAvailableDays] = useState<{ dateStr: string; label: string; dayName: string; isToday: boolean }[]>([]);
+  const [availableDays, setAvailableDays] = useState<
+    { dateStr: string; label: string; dayName: string; isToday: boolean }[]
+  >([]);
+
+  // Smooth scroll to top of wizard on step transitions
+  const goToStep = (step: 1 | 2 | 3 | 4) => {
+    setCurrentStep(step);
+    setTimeout(() => {
+      const el = document.getElementById('booking-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 40);
+  };
+
+  // If initialService is provided or changed from outside
+  useEffect(() => {
+    if (initialService) {
+      setSelectedService(initialService);
+      goToStep(2);
+    }
+  }, [initialService]);
 
   useEffect(() => {
-    // Generate dates starting today
     const days: { dateStr: string; label: string; dayName: string; isToday: boolean }[] = [];
     const today = new Date();
 
@@ -79,8 +106,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
       const d = new Date(today);
       d.setDate(today.getDate() + i);
 
-      // Skip Sundays (clinic closed)
-      if (d.getDay() === 0) continue;
+      if (d.getDay() === 0) continue; // Skip Sunday
 
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -88,7 +114,20 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
       const dateStr = `${year}-${month}-${day}`;
 
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
 
       days.push({
         dateStr,
@@ -160,7 +199,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
 
     if (!selectedDate || !selectedSlot) {
       setErrorMessage('Please select an appointment date and time slot.');
-      setCurrentStep(2);
+      goToStep(2);
       return;
     }
 
@@ -177,6 +216,11 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
     setSubmitting(true);
 
     try {
+      // Reason automatically inherits the selected clinical service!
+      const finalReason = additionalNotes.trim()
+        ? `${selectedService.name} - ${additionalNotes.trim()}`
+        : selectedService.name;
+
       const payload = {
         patientName: patientName.trim(),
         patientEmail: patientEmail.trim(),
@@ -191,11 +235,12 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
         paymentType,
         medicalAidScheme: paymentType === 'medical_aid' ? medicalAidScheme : undefined,
         medicalAidNumber: paymentType === 'medical_aid' ? medicalAidNumber.trim() : undefined,
-        medicalAidDependentCode: paymentType === 'medical_aid' ? medicalAidDependentCode.trim() : undefined,
+        medicalAidDependentCode:
+          paymentType === 'medical_aid' ? medicalAidDependentCode.trim() : undefined,
         date: selectedDate,
         timeSlot: selectedSlot,
         status: 'confirmed',
-        reasonForVisit: reasonForVisit.trim() || 'General consultation',
+        reasonForVisit: finalReason,
         isFirstVisit,
       };
 
@@ -212,26 +257,33 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
       }
 
       setConfirmedAppointment(data);
-      setCurrentStep(4);
+      goToStep(4);
       if (onBookingComplete) {
         onBookingComplete(data);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Something went wrong. Please check availability and try again.');
+      setErrorMessage(
+        err.message || 'Something went wrong. Please check availability and try again.'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   const resetBooking = () => {
-    setCurrentStep(1);
+    goToStep(1);
     setSelectedSlot('');
     setConfirmedAppointment(null);
     setErrorMessage(null);
+    setAdditionalNotes('');
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" id="booking-section">
+    <div
+      ref={containerRef}
+      id="booking-section"
+      className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden scroll-mt-28"
+    >
       {/* Step Header */}
       <div className="bg-slate-900 text-white p-5 sm:p-6 border-b border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -311,7 +363,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">1. Select Consultation Type</h3>
             <p className="text-sm text-slate-500">
-              Choose the service you require. Standard medical aid rates apply to all consultations.
+              Click on a consultation type below to immediately choose your date & time.
             </p>
           </div>
 
@@ -321,22 +373,25 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
               return (
                 <div
                   key={srv.id}
-                  onClick={() => setSelectedService(srv)}
-                  className={`relative p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                  onClick={() => {
+                    setSelectedService(srv);
+                    goToStep(2);
+                  }}
+                  className={`relative p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] ${
                     isSelected
                       ? 'border-brand-600 bg-brand-50/40 shadow-md ring-1 ring-brand-500'
-                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70'
+                      : 'border-slate-200 hover:border-brand-400 hover:bg-slate-50/80 shadow-xs'
                   }`}
                 >
                   {srv.badge && (
-                    <span className="absolute top-3 right-3 text-[10px] font-bold tracking-wider uppercase bg-brand-600 text-white px-2 py-0.5 rounded-full">
+                    <span className="absolute top-3 right-3 text-[10px] font-bold tracking-wider uppercase bg-brand-600 text-white px-2 py-0.5 rounded-full shadow-xs">
                       {srv.badge}
                     </span>
                   )}
                   <div className="flex items-start justify-between gap-2 pr-12">
                     <h4 className="font-bold text-slate-900 text-base">{srv.name}</h4>
                   </div>
-                  <p className="text-xs text-slate-600 mt-1 line-clamp-2">{srv.description}</p>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{srv.description}</p>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 text-slate-600 font-medium">
@@ -350,12 +405,8 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                   </div>
 
                   <div className="mt-3 flex items-center justify-end">
-                    <span
-                      className={`text-xs font-semibold flex items-center gap-1 ${
-                        isSelected ? 'text-brand-700' : 'text-slate-400'
-                      }`}
-                    >
-                      {isSelected ? 'Selected' : 'Click to select'}
+                    <span className="text-xs font-bold text-brand-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                      <span>Select & Choose Time</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </div>
@@ -370,10 +421,10 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
               <span>Full medical aid claiming available (Discovery, Bonitas, GEMS, etc.)</span>
             </div>
             <button
-              onClick={() => setCurrentStep(2)}
+              onClick={() => goToStep(2)}
               className="bg-brand-700 hover:bg-brand-800 text-white px-6 py-2.5 rounded-xl font-semibold text-sm shadow flex items-center gap-2 active:scale-95 transition-all"
             >
-              <span>Continue to Date & Time</span>
+              <span>Continue with {selectedService.name}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -391,8 +442,8 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
               </p>
             </div>
             <button
-              onClick={() => setCurrentStep(1)}
-              className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 self-start sm:self-center"
+              onClick={() => goToStep(1)}
+              className="text-xs font-bold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg border border-brand-200 flex items-center gap-1 self-start sm:self-center transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Change Service ({selectedService.name})</span>
@@ -562,7 +613,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
           {/* Navigation Bar */}
           <div className="mt-8 pt-5 border-t border-slate-200 flex items-center justify-between">
             <button
-              onClick={() => setCurrentStep(1)}
+              onClick={() => goToStep(1)}
               className="text-slate-600 hover:text-slate-900 px-4 py-2 text-sm font-medium flex items-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -570,7 +621,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
             </button>
             <button
               disabled={!selectedSlot}
-              onClick={() => setCurrentStep(3)}
+              onClick={() => goToStep(3)}
               className={`px-6 py-2.5 rounded-xl font-semibold text-sm shadow flex items-center gap-2 transition-all ${
                 selectedSlot
                   ? 'bg-brand-700 hover:bg-brand-800 text-white active:scale-95'
@@ -622,7 +673,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     placeholder="e.g. Sipho Ndlovu"
                     value={patientName}
                     onChange={(e) => setPatientName(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-400"
                   />
                 </div>
 
@@ -636,9 +687,9 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     placeholder="e.g. 8811205128082"
                     value={idNumber}
                     onChange={(e) => setIdNumber(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-400"
                   />
-                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                  <span className="text-[11px] text-slate-500 mt-0.5 block">
                     Required for HPCSA medical records and medical aid claims
                   </span>
                 </div>
@@ -653,9 +704,9 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     placeholder="e.g. 082 441 9923"
                     value={patientPhone}
                     onChange={(e) => setPatientPhone(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-400"
                   />
-                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                  <span className="text-[11px] text-slate-500 mt-0.5 block">
                     SMS and WhatsApp appointment reminders are sent here
                   </span>
                 </div>
@@ -670,9 +721,9 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     placeholder="e.g. sipho@gmail.com"
                     value={patientEmail}
                     onChange={(e) => setPatientEmail(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-400"
                   />
-                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                  <span className="text-[11px] text-slate-500 mt-0.5 block">
                     Calendar invite and confirmation reference sent here
                   </span>
                 </div>
@@ -684,7 +735,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value as any)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                   >
                     <option value="female">Female</option>
                     <option value="male">Male</option>
@@ -697,7 +748,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     Patient Status
                   </label>
                   <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-slate-800 font-medium cursor-pointer">
                       <input
                         type="radio"
                         name="visitType"
@@ -707,7 +758,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                       />
                       <span>Returning Patient</span>
                     </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-slate-800 font-medium cursor-pointer">
                       <input
                         type="radio"
                         name="visitType"
@@ -777,7 +828,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                     <select
                       value={medicalAidScheme}
                       onChange={(e) => setMedicalAidScheme(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full text-xs sm:text-sm text-slate-900 font-medium px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       {SA_MEDICAL_AIDS.map((sch) => (
                         <option key={sch} value={sch}>
@@ -797,7 +848,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                       placeholder="e.g. 928401928"
                       value={medicalAidNumber}
                       onChange={(e) => setMedicalAidNumber(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full text-xs sm:text-sm text-slate-900 font-medium px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400"
                     />
                   </div>
 
@@ -810,34 +861,39 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
                       placeholder="00 (Main), 01, 02..."
                       value={medicalAidDependentCode}
                       onChange={(e) => setMedicalAidDependentCode(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full text-xs sm:text-sm text-slate-900 font-medium px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="bg-white p-4 rounded-lg border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-lg border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
                   <span>
-                    Estimated consultation fee: <strong className="text-slate-900">R{selectedService.priceZAR}</strong>.
+                    Estimated consultation fee: <strong className="text-slate-900 font-bold">R{selectedService.priceZAR}</strong>.
                     Payment is made at reception upon arrival. No online upfront payment required.
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Medical Symptoms / Reason for visit */}
+            {/* Optional Doctor Notes (Replaces redundant reason for visit) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Reason for Visit / Main Symptoms (Confidential)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Additional Notes or Symptoms (Optional)
+                </label>
+                <span className="text-[11px] text-brand-700 font-semibold bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                  Service: {selectedService.name}
+                </span>
+              </div>
               <textarea
-                rows={3}
-                placeholder="Briefly describe what you would like Dr. Mokoena to assess (e.g. flu symptoms, repeat chronic script, blood pressure check)..."
-                value={reasonForVisit}
-                onChange={(e) => setReasonForVisit(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                rows={2}
+                placeholder="Optional: mention any specific symptoms, allergies, or repeat scripts you need..."
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                className="w-full text-sm text-slate-900 font-medium px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-400"
               />
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                This helps the doctor review relevant records before you arrive.
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                Your consultation is automatically categorized under <strong>{selectedService.name}</strong>. You do not need to re-explain your visit.
               </span>
             </div>
           </div>
@@ -846,7 +902,7 @@ export default function BookingWizard({ onBookingComplete }: BookingWizardProps)
           <div className="mt-8 pt-5 border-t border-slate-200 flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setCurrentStep(2)}
+              onClick={() => goToStep(2)}
               className="text-slate-600 hover:text-slate-900 px-4 py-2 text-sm font-medium flex items-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />

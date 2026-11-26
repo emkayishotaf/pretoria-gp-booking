@@ -65,31 +65,31 @@ export default function Navbar({ onOpenLookup, onBookClick }: NavbarProps) {
         </Link>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={onOpenLookup}
             type="button"
-            className="text-xs sm:text-sm font-medium text-slate-600 hover:text-brand-700 hover:bg-brand-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-200 sm:border-transparent hover:border-brand-200"
+            className="text-xs sm:text-sm font-medium text-slate-600 hover:text-brand-700 hover:bg-brand-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors flex items-center gap-1 border border-slate-200 sm:border-transparent hover:border-brand-200"
           >
-            <Calendar className="w-4 h-4 text-slate-500" />
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Find My Booking</span>
             <span className="sm:hidden">Lookup</span>
           </button>
 
           <Link
             href="/admin"
-            className="text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+            className="text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg transition-colors flex items-center gap-1"
           >
-            <ShieldCheck className="w-4 h-4 text-slate-600" />
+            <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
             <span>Admin</span>
           </Link>
 
           <button
             onClick={onBookClick}
             type="button"
-            className="bg-brand-700 hover:bg-brand-800 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5 active:scale-95"
+            className="bg-brand-700 hover:bg-brand-800 text-white text-xs sm:text-sm font-semibold px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1 active:scale-95"
           >
-            <Calendar className="w-4 h-4 text-brand-100" />
+            <Calendar className="w-3.5 h-3.5 text-brand-100" />
             <span>Book Visit</span>
           </button>
         </div>

@@ -19,15 +19,22 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { MEDICAL_SERVICES, SA_MEDICAL_AIDS } from '@/lib/constants';
+import { MedicalService } from '@/lib/types';
 
 export default function HomePage() {
   const [lookupModalOpen, setLookupModalOpen] = useState(false);
+  const [selectedServiceForBooking, setSelectedServiceForBooking] = useState<MedicalService | null>(null);
 
   const scrollToBooking = () => {
     const el = document.getElementById('booking-section');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const handleSelectServiceFromCard = (service: MedicalService) => {
+    setSelectedServiceForBooking(service);
+    scrollToBooking();
   };
 
   return (
@@ -80,7 +87,7 @@ export default function HomePage() {
 
           {/* Interactive Booking Wizard Embedded in Hero Container */}
           <div className="mt-10 max-w-4xl mx-auto">
-            <BookingWizard />
+            <BookingWizard initialService={selectedServiceForBooking} />
           </div>
         </div>
       </section>
@@ -126,10 +133,11 @@ export default function HomePage() {
                     <span className="text-[11px] text-slate-500 block">Medical aid claimable</span>
                   </div>
                   <button
-                    onClick={scrollToBooking}
-                    className="text-xs font-bold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                    onClick={() => handleSelectServiceFromCard(service)}
+                    className="text-xs font-bold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                   >
-                    Select & Book →
+                    <span>Choose & Book</span>
+                    <span>→</span>
                   </button>
                 </div>
               </div>
