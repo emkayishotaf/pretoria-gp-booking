@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sliders, Save, CheckCircle2, Shield, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Sliders, Save, CheckCircle2, Shield, AlertCircle, Clock, MapPin, Lock } from 'lucide-react';
 import { ClinicSettings } from '@/lib/types';
 
 interface ClinicSettingsViewProps {
@@ -26,6 +26,7 @@ export default function ClinicSettingsView({
   const [practiceNumber, setPracticeNumber] = useState(settings?.practiceNumber || 'PR 0148293');
   const [blockedDateInput, setBlockedDateInput] = useState('');
   const [blockedDates, setBlockedDates] = useState<string[]>(settings?.blockedDates || []);
+  const [adminPassword, setAdminPassword] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -36,7 +37,7 @@ export default function ClinicSettingsView({
     setSavedSuccess(false);
 
     try {
-      await onUpdateSettings({
+      const payload: Partial<ClinicSettings> = {
         maxDailyCapacity: Number(maxDailyCapacity),
         phone,
         whatsapp,
@@ -45,7 +46,14 @@ export default function ClinicSettingsView({
         hpcsaNumber,
         practiceNumber,
         blockedDates,
-      });
+      };
+
+      if (adminPassword.trim()) {
+        payload.adminPassword = adminPassword.trim();
+      }
+
+      await onUpdateSettings(payload);
+      setAdminPassword('');
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
@@ -241,6 +249,32 @@ export default function ClinicSettingsView({
           ) : (
             <p className="text-[11px] text-slate-400 italic">No closed leave dates currently set.</p>
           )}
+        </div>
+
+        {/* Security & Access Password */}
+        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+          <div className="flex items-center gap-2 mb-1.5 text-slate-900 font-bold text-xs uppercase tracking-wider">
+            <Lock className="w-4 h-4 text-emerald-600" />
+            <span>Practice Portal Security & Admin Password</span>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Set a custom access password for the doctor and receptionist admin portal. Leave blank to keep current password.
+          </p>
+          <div className="max-w-md">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              New Admin Password
+            </label>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="Enter new password (e.g. PretoriaGP2025!)"
+              className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Standard default password: <code className="text-slate-600 font-mono">DrMokoena2025!</code>
+            </p>
+          </div>
         </div>
 
         {/* Save button */}

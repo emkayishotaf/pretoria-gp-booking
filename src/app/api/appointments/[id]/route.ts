@@ -5,6 +5,7 @@ import {
   updateAppointment,
   deleteAppointment,
 } from '@/lib/db';
+import { verifyAdminSession } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -36,6 +37,21 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    // Patients can only cancel their booking with reference code.
+    // Any status change other than cancellation, or edits to notes/date/slot, require admin auth.
+    const isPatientCancellation =
+      body.status === 'cancelled' &&
+      !body.doctorNotes &&
+      !body.date &&
+      !body.timeSlot;
+
+    if (!isPatientCancellation && !verifyAdminSession(request)) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Practice admin authentication required' },
+        { status: 401 }
+      );
+    }
+
     let existing = await getAppointmentById(id);
     if (!existing) {
       existing = await getAppointmentByReference(id);
@@ -62,6 +78,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!verifyAdminSession(request)) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Practice admin authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     let existing = await getAppointmentById(id);
     if (!existing) {

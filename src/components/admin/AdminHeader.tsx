@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Sliders,
+  Lock,
 } from 'lucide-react';
 import { ClinicSettings } from '@/lib/types';
 
@@ -23,6 +24,7 @@ interface AdminHeaderProps {
   refreshing: boolean;
   activeTab: 'timeline' | 'table' | 'settings';
   setActiveTab: (tab: 'timeline' | 'table' | 'settings') => void;
+  onSignOut?: () => void;
 }
 
 export default function AdminHeader({
@@ -34,6 +36,7 @@ export default function AdminHeader({
   refreshing,
   activeTab,
   setActiveTab,
+  onSignOut,
 }: AdminHeaderProps) {
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -109,6 +112,18 @@ export default function AdminHeader({
             <ExternalLink className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Client Portal</span>
           </Link>
+
+          {/* Lock / Sign Out */}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              title="Lock Doctor Portal"
+              className="text-xs text-rose-300 hover:text-white flex items-center gap-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 px-3 py-2 rounded-xl font-medium transition-colors"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock</span>
+            </button>
+          )}
         </div>
       </div>
 

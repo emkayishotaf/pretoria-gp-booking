@@ -69,6 +69,7 @@ export interface ClinicSettings {
   email: string;
   maxDailyCapacity: number; // e.g. 10
   defaultSlotDuration: number; // 30 mins
+  adminPassword?: string; // Optional custom practice password
   operatingHours: {
     monday: DaySchedule;
     tuesday: DaySchedule;

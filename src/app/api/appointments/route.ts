@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAppointment, getAllAppointments } from '@/lib/db';
+import { verifyAdminSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    if (!verifyAdminSession(request)) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Practice admin authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date') || undefined;
     const status = searchParams.get('status') || undefined;

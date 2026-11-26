@@ -9,9 +9,11 @@ import ClinicSettingsView from '@/components/admin/ClinicSettingsView';
 import WalkInBookingModal from '@/components/admin/WalkInBookingModal';
 import ClinicalNotesModal from '@/components/admin/ClinicalNotesModal';
 import RescheduleModal from '@/components/admin/RescheduleModal';
+import AdminLoginScreen from '@/components/admin/AdminLoginScreen';
 import { Appointment, AppointmentStatus, ClinicSettings, DashboardStats } from '@/lib/types';
 
 export default function AdminDashboardPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -43,6 +45,11 @@ export default function AdminDashboardPage() {
         fetch('/api/settings'),
       ]);
 
+      if (apptsRes.status === 401 || statsRes.status === 401) {
+        setIsAuthenticated(false);
+        return;
+      }
+
       const [apptsData, statsData, settingsData] = await Promise.all([
         apptsRes.json(),
         statsRes.json(),
@@ -62,9 +69,39 @@ export default function AdminDashboardPage() {
     }
   }, [selectedDate]);
 
-  useEffect(() => {
-    fetchData();
+  // Auth check on mount
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/check');
+      const data = await res.json();
+      if (data.authenticated) {
+        setIsAuthenticated(true);
+        fetchData();
+      } else {
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Auth verification failed:', err);
+      setIsAuthenticated(false);
+      setLoading(false);
+    }
   }, [fetchData]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // Sign out / Lock Portal
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setIsAuthenticated(false);
+    }
+  };
 
   // Status Change Handler
   const handleStatusChange = async (id: string, newStatus: AppointmentStatus) => {
@@ -166,6 +203,28 @@ export default function AdminDashboardPage() {
     fetchData();
   };
 
+  // If auth state is still checking on initial load
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <div className="w-10 h-10 border-3 border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm text-slate-400 font-medium">Verifying practice security credentials...</p>
+      </div>
+    );
+  }
+
+  // If unauthenticated, show doctor/staff lock screen
+  if (isAuthenticated === false) {
+    return (
+      <AdminLoginScreen
+        onLoginSuccess={() => {
+          setIsAuthenticated(true);
+          fetchData();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       {/* Admin Header with Navigation and Quick Actions */}
@@ -181,6 +240,7 @@ export default function AdminDashboardPage() {
         refreshing={refreshing}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Content Area */}
