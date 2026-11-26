@@ -293,12 +293,9 @@ export default function BookingWizard({
             </span>
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
               <span>Book Doctor Consultation</span>
-              <span className="text-xs font-normal bg-brand-900/80 text-brand-300 border border-brand-700/60 px-2.5 py-0.5 rounded-full">
-                7–11 Patients Daily Cap
-              </span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Dedicated, unhurried time with Dr. Kgomotso Mokoena. No overbooking.
+              Professional, dedicated family healthcare with Dr. Kgomotso Mokoena.
             </p>
           </div>
 
@@ -438,7 +435,7 @@ export default function BookingWizard({
             <div>
               <h3 className="text-lg font-bold text-slate-900">2. Select Consultation Date & Time</h3>
               <p className="text-sm text-slate-500">
-                Dr. Mokoena sees a maximum of 10 patients per day to guarantee thorough medical care.
+                Select your preferred date and time for your consultation.
               </p>
             </div>
             <button
@@ -509,7 +506,7 @@ export default function BookingWizard({
                     )}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Strict daily limit ensures punctual consultations without waiting room delays.
+                    Punctual consultations with minimal waiting room delays.
                   </p>
                 </div>
               </div>

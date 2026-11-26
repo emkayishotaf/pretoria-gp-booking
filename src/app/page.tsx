@@ -57,7 +57,7 @@ export default function HomePage() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>General Practitioner • Brooklyn Bridge, Pretoria</span>
               <span className="text-brand-500">•</span>
-              <span className="text-brand-200">7–11 Patients Daily Cap</span>
+              <span className="text-brand-200">Family & Primary Care</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
@@ -65,7 +65,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Dr. Kgomotso Mokoena limits daily bookings to guarantee every patient receives focused clinical attention, comprehensive assessments, and zero rushed 10-minute turnaround.
+              Dr. Kgomotso Mokoena provides patient-centered family medical care, comprehensive clinical assessments, and dedicated consultation time for every patient.
             </p>
 
             {/* Quick trust metrics */}

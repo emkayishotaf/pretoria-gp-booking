@@ -18,12 +18,12 @@ export default function CapacityMetrics({ stats, selectedDate }: CapacityMetrics
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-      {/* 1. Daily Capacity Card (Specialized for 7-11 volume) */}
+      {/* 1. Daily Capacity Card */}
       <div className="sm:col-span-2 bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-sm border border-slate-700/60 relative overflow-hidden">
         <div className="flex items-start justify-between">
           <div>
             <span className="text-xs uppercase font-bold tracking-wider text-brand-400">
-              Daily Patient Capacity (7–11 Limit)
+              Daily Patient Capacity
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-3xl font-extrabold text-white">

@@ -51,10 +51,10 @@ export default function DoctorBioSection() {
                 <div className="mt-6 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4">
                   <div className="flex items-center gap-2 text-brand-400 font-bold text-xs uppercase tracking-wider mb-1">
                     <Clock className="w-4 h-4" />
-                    <span>The 7–11 Patient Promise</span>
+                    <span>Dedicated Patient Care</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    &ldquo;I intentionally limit consultations to 7–11 patients per day. You receive 30–45 minutes of thorough examination, active listening, and personalized treatment without feeling rushed.&rdquo;
+                    &ldquo;Every patient receives dedicated, unhurried time. We prioritize active listening, thorough examination, and personalized medical care tailored to you and your family.&rdquo;
                   </p>
                 </div>
               </div>

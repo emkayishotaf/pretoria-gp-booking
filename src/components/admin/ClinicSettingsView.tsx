@@ -85,7 +85,7 @@ export default function ClinicSettingsView({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6 text-xs sm:text-sm">
-        {/* Daily Capacity Slider (7 - 11 patients) */}
+        {/* Daily Capacity Slider */}
         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
@@ -93,7 +93,7 @@ export default function ClinicSettingsView({
                 Daily Consultation Limit (Volume Control)
               </span>
               <p className="text-xs text-slate-500 mt-0.5">
-                Targeted for high-quality general practice seeing 7 to 11 patients per day.
+                Set the maximum patient consultation limit per day.
               </p>
             </div>
             <div className="text-right">
@@ -114,7 +114,7 @@ export default function ClinicSettingsView({
             />
             <div className="flex justify-between text-[11px] text-slate-400 font-mono">
               <span>5 patients</span>
-              <span className="text-brand-700 font-bold">7–11 recommended for GP Pretoria</span>
+              <span className="text-brand-700 font-bold">Recommended standard for GP practice</span>
               <span>15 patients</span>
             </div>
           </div>
