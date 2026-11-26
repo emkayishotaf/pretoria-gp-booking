@@ -28,12 +28,11 @@ async function getVercelPool(connectionString: string) {
   if (cachedPool) return cachedPool;
 
   try {
-    const dynamicImport = new Function('modulePath', 'return import(modulePath)');
-    const mod = await dynamicImport('@vercel/postgres');
+    const mod: any = await import('@vercel/postgres');
     if (mod.createPool) {
       cachedPool = mod.createPool({ connectionString });
-    } else if (mod.db) {
-      cachedPool = mod.db;
+    } else if (mod.default?.createPool) {
+      cachedPool = mod.default.createPool({ connectionString });
     } else {
       cachedPool = mod;
     }
@@ -58,7 +57,7 @@ export async function queryPostgres(sqlText: string, params: any[] = []): Promis
       return result.rows || [];
     }
   } catch (err: any) {
-    console.warn('Vercel postgres pool query error, falling back to HTTP:', err.message);
+    console.warn('Vercel postgres pool query error, falling back to HTTP:', err?.message || err);
   }
 
   // 2. Fall back to Neon SQL HTTP endpoint
@@ -68,14 +67,18 @@ export async function queryPostgres(sqlText: string, params: any[] = []): Promis
   }
 
   const neonHttpUrl = `https://${parsed.host}/sql`;
-  const authHeader = 'Basic ' + Buffer.from(`${parsed.user}:${parsed.password}`).toString('base64');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Neon-Connection-String': connectionString,
+  };
+
+  if (parsed.password) {
+    headers['Authorization'] = `Bearer ${parsed.password}`;
+  }
 
   const res = await fetch(neonHttpUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
-    },
+    headers,
     body: JSON.stringify({
       query: sqlText,
       params,
@@ -88,7 +91,13 @@ export async function queryPostgres(sqlText: string, params: any[] = []): Promis
   }
 
   const data = await res.json();
-  return data.rows || [];
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && Array.isArray(data.rows)) {
+    return data.rows;
+  }
+  return [];
 }
 
 // Convert database snake_case row to TypeScript Appointment

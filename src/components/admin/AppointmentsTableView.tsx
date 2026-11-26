@@ -34,7 +34,7 @@ export default function AppointmentsTableView({
 }: AppointmentsTableViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilterMode, setDateFilterMode] = useState<'all' | 'selected' | 'today'>('selected');
+  const [dateFilterMode, setDateFilterMode] = useState<'all' | 'selected' | 'today'>('all');
 
   const todayStr = new Date().toISOString().split('T')[0];
 

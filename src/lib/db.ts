@@ -14,7 +14,7 @@ interface StorageData {
   appointments: Appointment[];
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.VERCEL ? '/tmp/clinic-data' : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'clinic.json');
 
 // Helper to format date as YYYY-MM-DD
@@ -325,6 +325,57 @@ export async function getAllAppointments(filters?: {
   if (isPostgresConfigured()) {
     try {
       await initPostgresSchema();
+
+      // Ensure seed appointments exist in DB if table is fresh
+      try {
+        const countRes = await queryPostgres('SELECT COUNT(*) as cnt FROM appointments');
+        const count = Number(countRes[0]?.cnt || countRes[0]?.count || 0);
+        if (count === 0) {
+          const seeds = generateSeedAppointments();
+          for (const s of seeds) {
+            await queryPostgres(
+              `INSERT INTO appointments (
+                id, reference, patient_name, patient_email, patient_phone, id_number, dob, gender,
+                service_id, service_name, service_duration, service_price, payment_type,
+                medical_aid_scheme, medical_aid_number, medical_aid_dependent_code,
+                date, time_slot, status, reason_for_visit, is_first_visit, doctor_notes, cancellation_reason,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+              ON CONFLICT (id) DO NOTHING`,
+              [
+                s.id,
+                s.reference,
+                s.patientName,
+                s.patientEmail,
+                s.patientPhone,
+                s.idNumber,
+                s.dob || null,
+                s.gender || null,
+                s.serviceId,
+                s.serviceName,
+                s.serviceDuration,
+                s.servicePrice,
+                s.paymentType,
+                s.medicalAidScheme || null,
+                s.medicalAidNumber || null,
+                s.medicalAidDependentCode || null,
+                s.date,
+                s.timeSlot,
+                s.status,
+                s.reasonForVisit,
+                s.isFirstVisit,
+                s.doctorNotes || null,
+                s.cancellationReason || null,
+                s.createdAt,
+                s.updatedAt,
+              ]
+            );
+          }
+        }
+      } catch (seedErr) {
+        console.warn('Seeding check skipped:', seedErr);
+      }
+
       let query = 'SELECT * FROM appointments WHERE 1=1';
       const params: any[] = [];
 
